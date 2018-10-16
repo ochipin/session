@@ -204,3 +204,47 @@ func Test__SESSION(t *testing.T) {
 
 	defer ts.Close()
 }
+
+func Test__SESSION_ACCESS(t *testing.T) {
+	// セッション管理情報を構築する
+	session := New("", 2, 0, false)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// セッション管理開始
+		sess := session.Start(w, r)
+		ssid := sess.SessionID()
+
+		// セッションIDから、セッション情報を取得する
+		data, err := session.Get(ssid)
+		if err != nil {
+			t.Fatal("Session.Get: Fatal")
+		}
+
+		// セッションIDを使用して、データを保存する
+		data["name"] = "TEST"
+		if err := session.Set(ssid, data); err != nil {
+			t.Fatal("Session.Set: Fatal")
+		}
+
+		// セッション情報が更新されたか確認する
+		values, _ := sess.Str("name")
+		if values != "TEST" {
+			t.Fatal("Session.Str: Fatal")
+		}
+
+		// セッション情報を削除する
+		session.Delete(ssid)
+
+		// セッション情報を再度取得して、削除されているか確認する
+		if _, err = session.Get(ssid); err == nil {
+			t.Fatal("Session.Get: Fatal")
+		}
+
+		// セッション情報に、登録もできないことを確認する
+		if err = session.Set(ssid, data); err == nil {
+			t.Fatal("Session.Set: Fatal")
+		}
+	}))
+	client := ts.Client()
+	client.Get(ts.URL)
+	defer ts.Close()
+}

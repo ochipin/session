@@ -253,6 +253,46 @@ func (session *Session) Destroy(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Get : 指定したSessionIDから情報を取得する
+func (session *Session) Get(ssid string) (map[string]interface{}, error) {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+
+	if v, ok := session.data[ssid]; ok {
+		if storage, ok := v.Value.(*Storage); ok {
+			return storage.Values, nil
+		}
+	}
+	return nil, fmt.Errorf("'%s' - not found", ssid)
+}
+
+// Set : 指定したSessionIDにデータをセットする
+func (session *Session) Set(ssid string, value map[string]interface{}) error {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+
+	if v, ok := session.data[ssid]; ok {
+		if storage, ok := v.Value.(*Storage); ok {
+			storage.Values = value
+			return nil
+		}
+	}
+	return fmt.Errorf("'%s' - not found", ssid)
+}
+
+// Delete : 指定したSessionIDを削除する
+func (session *Session) Delete(ssid string) {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+
+	if v, ok := session.data[ssid]; ok {
+		if storage, ok := v.Value.(*Storage); ok {
+			delete(session.data, storage.ssid)
+			session.list.Remove(v)
+		}
+	}
+}
+
 // 期限切れのセッションIDを検査する
 func (session *Session) inspection() {
 	session.mu.Lock()
